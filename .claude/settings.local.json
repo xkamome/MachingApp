@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create vite@latest frontend -- --template react)",
+      "Bash(cmd /c \"where node 2>&1\")",
+      "Bash(cmd /c \"where npm 2>&1\")",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs:/c/Users/a9765/AppData/Roaming/npm\")",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "Bash(winget --version)",
+      "Bash(winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs\")",
+      "Bash(npm install)",
+      "Bash(curl -s http://localhost:3001/api/phase)",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/phase -H \"Content-Type: application/json\" -H \"x-admin-password: admin1234\" -d '{\"\"phase\"\":\"\"voting\"\"}')",
+      "Bash(curl -s \"http://localhost:3001/api/participants?group=A\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/participants -H \"Content-Type: application/json\" -H \"x-admin-password: admin1234\" -d '{\"\"name\"\":\"\"小明\"\",\"\"group_name\"\":\"\"A\"\",\"\"bio\"\":\"\"喜歡打球\"\",\"\"access_code\"\":\"\"1234\"\"}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/participants -H \"Content-Type: application/json\" -H \"x-admin-password: admin1234\" -d '{\"\"name\"\":\"\"小美\"\",\"\"group_name\"\":\"\"B\"\",\"\"bio\"\":\"\"愛看電影\"\",\"\"access_code\"\":\"\"5678\"\"}')",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s http://localhost:3001/api/admin/stats -H \"x-admin-password: admin1234\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/phase -H \"Content-Type: application/json\" -H \"x-admin-password: admin1234\" -d '{\"\"phase\"\":\"\"setup\"\"}')",
+      "Bash(curl -s -X DELETE \"http://localhost:3001/api/admin/participants/d41b040c-3685-4d73-92bf-ac091594fb6f\" -H \"x-admin-password: admin1234\")",
+      "Bash(curl -s -X DELETE \"http://localhost:3001/api/admin/participants/fa838d88-2b11-41ef-ab43-e3b85ea2aa69\" -H \"x-admin-password: admin1234\")",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(curl -s http://localhost:3001/api/admin/participants -H \"x-admin-password: admin1234\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(p[''group_name''], p[''name''], p[''access_code'']\\) for p in data]\")",
+      "Bash(node -e \":*)",
+      "Bash(__NEW_LINE_7d333a94df1a35ea__ node -e \":*)",
+      "Bash(git init)",
+      "Bash(git add .)"
+    ]
+  }
+}
