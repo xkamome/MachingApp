@@ -28,8 +28,8 @@ async function request(path, options = {}) {
 export const api = {
   getPhase: () => request('/phase'),
   getParticipants: (group) => request(`/participants?group=${group}`),
-  login: (access_code) => request('/login', { method: 'POST', body: { access_code } }),
-  submitChoice: (chosen_id) => request('/choice', { method: 'POST', body: { chosen_id } }),
+  login: (participant_id) => request('/login', { method: 'POST', body: { participant_id } }),
+  submitChoice: (chosen_id, email) => request('/choice', { method: 'POST', body: { chosen_id, email } }),
   getMyResult: () => request('/my-result'),
 };
 

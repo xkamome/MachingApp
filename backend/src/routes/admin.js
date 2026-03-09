@@ -38,23 +38,25 @@ router.get('/participants', async (req, res) => {
 router.post('/participants', async (req, res) => {
   try {
     const { name, group_name, bio, photo, access_code } = req.body;
-    if (!name || !group_name || !access_code) {
-      return res.status(400).json({ error: 'name, group_name, access_code required' });
+    if (!name || !group_name) {
+      return res.status(400).json({ error: 'name and group_name required' });
     }
     if (!['A', 'B'].includes(group_name)) {
       return res.status(400).json({ error: 'group_name must be A or B' });
     }
-    const dup = await db.execute({ sql: 'SELECT id FROM participants WHERE access_code = ?', args: [access_code] });
+    // access_code 選填，若未提供則自動產生
+    const code = access_code || uuidv4().slice(0, 8);
+    const dup = await db.execute({ sql: 'SELECT id FROM participants WHERE access_code = ?', args: [code] });
     if (dup.rows.length > 0) return res.status(409).json({ error: 'access_code already exists' });
 
     const id = uuidv4();
     await db.execute({
       sql: 'INSERT INTO participants (id, name, group_name, bio, photo, access_code) VALUES (?, ?, ?, ?, ?, ?)',
-      args: [id, name, group_name, bio || '', photo || '', access_code],
+      args: [id, name, group_name, bio || '', photo || '', code],
     });
 
     await addAuditLog('add_participant', id, `Added ${name} to group ${group_name}`);
-    res.json({ id, name, group_name, bio, photo, access_code });
+    res.json({ id, name, group_name, bio, photo, access_code: code });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -219,25 +221,26 @@ router.post('/batch-participants', async (req, res) => {
 
     for (const item of participants) {
       const { name, group_name, bio, photo, access_code } = item;
-      if (!name || !group_name || !access_code) {
-        errors.push({ item, error: 'name, group_name, access_code required' });
+      if (!name || !group_name) {
+        errors.push({ item, error: 'name and group_name required' });
         continue;
       }
       if (!['A', 'B'].includes(group_name)) {
         errors.push({ item, error: 'group_name must be A or B' });
         continue;
       }
-      const dup = await db.execute({ sql: 'SELECT id FROM participants WHERE access_code = ?', args: [access_code] });
+      const code = access_code || uuidv4().slice(0, 8);
+      const dup = await db.execute({ sql: 'SELECT id FROM participants WHERE access_code = ?', args: [code] });
       if (dup.rows.length > 0) {
-        errors.push({ item, error: `access_code ${access_code} already exists` });
+        errors.push({ item, error: `access_code ${code} already exists` });
         continue;
       }
       const id = uuidv4();
       await db.execute({
         sql: 'INSERT INTO participants (id, name, group_name, bio, photo, access_code) VALUES (?, ?, ?, ?, ?, ?)',
-        args: [id, name, group_name, bio || '', photo || '', access_code],
+        args: [id, name, group_name, bio || '', photo || '', code],
       });
-      inserted.push({ id, name, group_name, access_code });
+      inserted.push({ id, name, group_name, access_code: code });
     }
 
     await addAuditLog('batch_add', null, `Batch added ${inserted.length} participants`);

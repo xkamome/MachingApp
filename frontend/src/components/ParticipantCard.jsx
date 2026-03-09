@@ -20,28 +20,19 @@ export default function ParticipantCard({ participant, selected, onClick, disabl
         ${selected ? 'shadow-md' : ''}
       `}
     >
-      {/* 頭像 */}
       <div className="shrink-0">
         {photo ? (
-          <img
-            src={photo}
-            alt={name}
-            className="w-14 h-14 rounded-full object-cover border-2 border-white shadow"
-          />
+          <img src={photo} alt={name} className="w-14 h-14 rounded-full object-cover border-2 border-white shadow" />
         ) : (
           <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${avatarBg}`}>
             {name.charAt(0)}
           </div>
         )}
       </div>
-
-      {/* 資訊 */}
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 text-base truncate">{name}</p>
         {bio && <p className="text-gray-500 text-sm mt-0.5 line-clamp-2">{bio}</p>}
       </div>
-
-      {/* 選中標記 */}
       {selected && (
         <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm
           ${isA ? 'bg-pink-500' : 'bg-blue-500'}`}>

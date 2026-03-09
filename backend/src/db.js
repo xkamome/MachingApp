@@ -51,6 +51,11 @@ async function initDb() {
       args: ['setup', new Date().toISOString()],
     });
   }
+
+  // Migration: add email column to choices if not exists
+  try {
+    await db.execute('ALTER TABLE choices ADD COLUMN email TEXT DEFAULT ""');
+  } catch (_) { /* column already exists */ }
 }
 
 async function getPhase() {

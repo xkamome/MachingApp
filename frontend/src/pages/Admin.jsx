@@ -86,7 +86,7 @@ function AddParticipantForm({ onAdded }) {
   };
 
   const handleSingle = async () => {
-    if (!form.name || !form.access_code) return setError('姓名和密碼為必填');
+    if (!form.name) return setError('姓名為必填');
     setLoading(true); setError('');
     try {
       await adminApi.addParticipant(form);
@@ -154,7 +154,7 @@ function AddParticipantForm({ onAdded }) {
           <input value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
             placeholder="簡介（選填）" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
           <input value={form.access_code} onChange={e => setForm(f => ({ ...f, access_code: e.target.value }))}
-            placeholder="通關密碼 *（建議 4-6 位數字）" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            placeholder="識別碼（選填，留空自動產生）" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
 
           {/* 照片上傳 */}
           <div className="flex items-center gap-3">
@@ -175,13 +175,13 @@ function AddParticipantForm({ onAdded }) {
         <div className="space-y-3">
           <p className="text-xs text-gray-500">
             格式：每行一人<br />
-            <code className="bg-gray-100 px-1 rounded">姓名,分組(A或B),簡介,密碼</code><br />
+            <code className="bg-gray-100 px-1 rounded">姓名,分組(A或B),簡介</code>（識別碼自動產生）<br />
             或貼上 JSON 陣列
           </p>
           <textarea
             value={batchText}
             onChange={e => setBatchText(e.target.value)}
-            placeholder={`範例：\n小明,A,喜歡打球,1234\n小美,B,愛看電影,5678`}
+            placeholder={`範例：\n小明,A,喜歡打球\n小美,B,愛看電影`}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-32 resize-none font-mono"
           />
           {error && <p className="text-sm text-gray-600">{error}</p>}

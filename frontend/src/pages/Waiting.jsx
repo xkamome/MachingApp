@@ -11,33 +11,22 @@ export default function Waiting() {
   useEffect(() => {
     if (!me) { navigate('/'); return; }
 
-    // 動態點點動畫
     const dotTimer = setInterval(() => {
       setDots(d => d.length >= 3 ? '' : d + '.');
     }, 500);
 
-    // 輪詢 phase（每 3 秒）
     const poll = async () => {
       try {
         const data = await api.getPhase();
         setStats(data);
-        if (data.phase === 'revealed') {
-          navigate('/result');
-        } else if (data.phase === 'setup') {
-          navigate('/');
-        }
-      } catch {
-        // 忽略網路錯誤，繼續輪詢
-      }
+        if (data.phase === 'revealed') navigate('/result');
+        else if (data.phase === 'setup') navigate('/');
+      } catch { /* 繼續輪詢 */ }
     };
 
     poll();
     const pollTimer = setInterval(poll, 3000);
-
-    return () => {
-      clearInterval(dotTimer);
-      clearInterval(pollTimer);
-    };
+    return () => { clearInterval(dotTimer); clearInterval(pollTimer); };
   }, [navigate, me?.id]);
 
   if (!me) return null;
@@ -47,19 +36,12 @@ export default function Waiting() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-      {/* 動畫圖示 */}
       <div className="relative mb-8">
         <div className="text-8xl animate-pulse">💝</div>
       </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">等待揭曉中{dots}</h1>
+      <p className="text-gray-500 mb-8">選擇已送出，等待工作人員公布結果</p>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        等待揭曉中{dots}
-      </h1>
-      <p className="text-gray-500 mb-8">
-        選擇已送出，等待工作人員公布結果
-      </p>
-
-      {/* 進度條 */}
       <div className="w-full max-w-xs mb-2">
         <div className="flex justify-between text-sm text-gray-500 mb-2">
           <span>選擇進度</span>
@@ -74,7 +56,6 @@ export default function Waiting() {
         <p className="text-xs text-gray-400 mt-2">{pct}% 已完成選擇</p>
       </div>
 
-      {/* 我的選擇提示 */}
       <div className={`mt-8 px-5 py-4 rounded-2xl ${isA ? 'bg-pink-50' : 'bg-blue-50'}`}>
         <p className={`text-sm font-medium ${isA ? 'text-pink-600' : 'text-blue-600'}`}>
           你的選擇已經記錄在案 ✓

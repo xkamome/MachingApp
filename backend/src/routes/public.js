@@ -38,21 +38,21 @@ router.get('/participants', async (req, res) => {
   }
 });
 
-// POST /api/login  body: { access_code }
+// POST /api/login  body: { participant_id }
 router.post('/login', async (req, res) => {
   try {
     const phase = await getPhase();
     if (phase === 'setup') return res.status(403).json({ error: 'Activity not started' });
 
-    const { access_code } = req.body;
-    if (!access_code) return res.status(400).json({ error: 'access_code required' });
+    const { participant_id } = req.body;
+    if (!participant_id) return res.status(400).json({ error: 'participant_id required' });
 
     const result = await db.execute({
-      sql: 'SELECT id, name, group_name, bio, photo FROM participants WHERE access_code = ?',
-      args: [access_code.trim()],
+      sql: 'SELECT id, name, group_name, bio, photo FROM participants WHERE id = ?',
+      args: [participant_id],
     });
     const participant = result.rows[0];
-    if (!participant) return res.status(401).json({ error: 'Invalid access code' });
+    if (!participant) return res.status(404).json({ error: 'Participant not found' });
 
     const token = jwt.sign({ id: participant.id }, JWT_SECRET, { expiresIn: '24h' });
 
@@ -81,7 +81,7 @@ function auth(req, res, next) {
   }
 }
 
-// POST /api/choice  body: { chosen_id }
+// POST /api/choice  body: { chosen_id, email }
 router.post('/choice', auth, async (req, res) => {
   try {
     const phase = await getPhase();
@@ -89,8 +89,11 @@ router.post('/choice', auth, async (req, res) => {
       return res.status(403).json({ error: 'Voting is not open' });
     }
 
-    const { chosen_id } = req.body;
+    const { chosen_id, email } = req.body;
     if (!chosen_id) return res.status(400).json({ error: 'chosen_id required' });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'email 格式不正確' });
+    }
 
     const chooserRes = await db.execute({
       sql: 'SELECT id, group_name FROM participants WHERE id = ?',
@@ -117,13 +120,13 @@ router.post('/choice', auth, async (req, res) => {
 
     if (existingRes.rows.length > 0) {
       await db.execute({
-        sql: 'UPDATE choices SET chosen_id = ?, updated_at = ? WHERE chooser_id = ?',
-        args: [chosen_id, now, req.user.id],
+        sql: 'UPDATE choices SET chosen_id = ?, email = ?, updated_at = ? WHERE chooser_id = ?',
+        args: [chosen_id, email, now, req.user.id],
       });
     } else {
       await db.execute({
-        sql: 'INSERT INTO choices (chooser_id, chosen_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
-        args: [req.user.id, chosen_id, now, now],
+        sql: 'INSERT INTO choices (chooser_id, chosen_id, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        args: [req.user.id, chosen_id, email, now, now],
       });
     }
 
@@ -168,7 +171,14 @@ router.get('/my-result', auth, async (req, res) => {
     });
     const partner = partnerRes.rows[0];
 
-    res.json({ matched, me, partner });
+    // 取得對方填寫的 email（存在對方的 choice 記錄中）
+    const partnerEmailRes = await db.execute({
+      sql: 'SELECT email FROM choices WHERE chooser_id = ?',
+      args: [myChoice.chosen_id],
+    });
+    const partnerEmail = partnerEmailRes.rows[0]?.email || '';
+
+    res.json({ matched, me, partner: { ...partner, email: partnerEmail } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
