@@ -1,6 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { db, getPhase, setPhase, addAuditLog } = require('../db');
+const { sendAllMatchEmails } = require('../emailService');
 
 const router = express.Router();
 const VALID_PHASES = ['setup', 'voting', 'locked', 'revealed'];
@@ -138,6 +139,13 @@ router.post('/phase', async (req, res) => {
     const prev = await getPhase();
     await setPhase(phase);
     await addAuditLog('change_phase', null, `${prev} → ${phase}`);
+
+    // Phase 變為 revealed 時，自動寄配對結果 email 給所有配對成功的人
+    if (phase === 'revealed' && prev !== 'revealed') {
+      // 非同步寄信，不阻塞 HTTP 回應
+      sendAllMatchEmails().catch(e => console.error('[Email] 寄信流程錯誤:', e.message));
+    }
+
     res.json({ ok: true, phase });
   } catch (e) {
     res.status(500).json({ error: e.message });
