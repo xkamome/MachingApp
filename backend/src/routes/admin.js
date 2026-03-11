@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { db, getPhase, setPhase, addAuditLog } = require('../db');
-const { sendAllMatchEmails } = require('../emailService');
+const { sendResultEmails } = require('../emailService');
 
 const router = express.Router();
 const VALID_PHASES = ['setup', 'voting', 'locked', 'revealed'];
@@ -21,7 +21,7 @@ router.get('/participants', async (req, res) => {
   try {
     const rows = await db.execute(`
       SELECT
-        p.id, p.name, p.group_name, p.bio, p.photo, p.access_code,
+        p.id, p.name, p.group_name, p.bio, p.photo, p.instagram, p.access_code,
         c.chosen_id,
         cp.name as chosen_name
       FROM participants p
@@ -38,26 +38,25 @@ router.get('/participants', async (req, res) => {
 // POST /api/admin/participants
 router.post('/participants', async (req, res) => {
   try {
-    const { name, group_name, bio, photo, access_code } = req.body;
+    const { name, group_name, bio, photo, instagram, access_code } = req.body;
     if (!name || !group_name) {
       return res.status(400).json({ error: 'name and group_name required' });
     }
     if (!['A', 'B'].includes(group_name)) {
       return res.status(400).json({ error: 'group_name must be A or B' });
     }
-    // access_code 選填，若未提供則自動產生
     const code = access_code || uuidv4().slice(0, 8);
     const dup = await db.execute({ sql: 'SELECT id FROM participants WHERE access_code = ?', args: [code] });
     if (dup.rows.length > 0) return res.status(409).json({ error: 'access_code already exists' });
 
     const id = uuidv4();
     await db.execute({
-      sql: 'INSERT INTO participants (id, name, group_name, bio, photo, access_code) VALUES (?, ?, ?, ?, ?, ?)',
-      args: [id, name, group_name, bio || '', photo || '', code],
+      sql: 'INSERT INTO participants (id, name, group_name, bio, photo, instagram, access_code) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      args: [id, name, group_name, bio || '', photo || '', instagram || '', code],
     });
 
     await addAuditLog('add_participant', id, `Added ${name} to group ${group_name}`);
-    res.json({ id, name, group_name, bio, photo, access_code: code });
+    res.json({ id, name, group_name, bio, photo, instagram: instagram || '', access_code: code });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -67,7 +66,7 @@ router.post('/participants', async (req, res) => {
 router.put('/participants/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, bio, photo, access_code } = req.body;
+    const { name, bio, photo, instagram, access_code } = req.body;
     const existing = await db.execute({ sql: 'SELECT id FROM participants WHERE id = ?', args: [id] });
     if (existing.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
@@ -84,13 +83,24 @@ router.put('/participants/:id', async (req, res) => {
         name = COALESCE(?, name),
         bio = COALESCE(?, bio),
         photo = COALESCE(?, photo),
+        instagram = COALESCE(?, instagram),
         access_code = COALESCE(?, access_code)
       WHERE id = ?`,
-      args: [name || null, bio !== undefined ? bio : null, photo !== undefined ? photo : null, access_code || null, id],
+      args: [
+        name || null,
+        bio !== undefined ? bio : null,
+        photo !== undefined ? photo : null,
+        instagram !== undefined ? instagram : null,
+        access_code || null,
+        id,
+      ],
     });
 
     await addAuditLog('update_participant', id, `Updated ${id}`);
-    const updated = await db.execute({ sql: 'SELECT id, name, group_name, bio, photo, access_code FROM participants WHERE id = ?', args: [id] });
+    const updated = await db.execute({
+      sql: 'SELECT id, name, group_name, bio, photo, instagram, access_code FROM participants WHERE id = ?',
+      args: [id],
+    });
     res.json(updated.rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -104,7 +114,6 @@ router.delete('/participants/:id', async (req, res) => {
     const p = await db.execute({ sql: 'SELECT name FROM participants WHERE id = ?', args: [id] });
     if (p.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
-    // 先刪選擇記錄
     await db.execute({ sql: 'DELETE FROM choices WHERE chooser_id = ? OR chosen_id = ?', args: [id, id] });
     await db.execute({ sql: 'DELETE FROM participants WHERE id = ?', args: [id] });
     await addAuditLog('delete_participant', id, `Deleted ${p.rows[0].name}`);
@@ -140,10 +149,9 @@ router.post('/phase', async (req, res) => {
     await setPhase(phase);
     await addAuditLog('change_phase', null, `${prev} → ${phase}`);
 
-    // Phase 變為 revealed 時，自動寄配對結果 email 給所有配對成功的人
+    // Phase 變為 revealed 時，自動寄配對結果 email（含成功與失敗）
     if (phase === 'revealed' && prev !== 'revealed') {
-      // 非同步寄信，不阻塞 HTTP 回應
-      sendAllMatchEmails().catch(e => console.error('[Email] 寄信流程錯誤:', e.message));
+      sendResultEmails().catch(e => console.error('[Email] 寄信流程錯誤:', e.message));
     }
 
     res.json({ ok: true, phase });
@@ -156,7 +164,10 @@ router.post('/phase', async (req, res) => {
 router.get('/preview/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const meRes = await db.execute({ sql: 'SELECT id, name, group_name, bio, photo FROM participants WHERE id = ?', args: [id] });
+    const meRes = await db.execute({
+      sql: 'SELECT id, name, group_name, bio, photo, instagram FROM participants WHERE id = ?',
+      args: [id],
+    });
     const me = meRes.rows[0];
     if (!me) return res.status(404).json({ error: 'Not found' });
 
@@ -168,7 +179,10 @@ router.get('/preview/:id', async (req, res) => {
     const theirChoice = theirChoiceRes.rows[0];
     const matched = theirChoice?.chosen_id === id;
 
-    const partnerRes = await db.execute({ sql: 'SELECT id, name, group_name, bio, photo FROM participants WHERE id = ?', args: [myChoice.chosen_id] });
+    const partnerRes = await db.execute({
+      sql: 'SELECT id, name, group_name, bio, photo, instagram FROM participants WHERE id = ?',
+      args: [myChoice.chosen_id],
+    });
     const partner = partnerRes.rows[0];
 
     res.json({ matched, me, partner, preview: true });
@@ -228,7 +242,7 @@ router.post('/batch-participants', async (req, res) => {
     const errors = [];
 
     for (const item of participants) {
-      const { name, group_name, bio, photo, access_code } = item;
+      const { name, group_name, bio, photo, instagram, access_code } = item;
       if (!name || !group_name) {
         errors.push({ item, error: 'name and group_name required' });
         continue;
@@ -245,8 +259,8 @@ router.post('/batch-participants', async (req, res) => {
       }
       const id = uuidv4();
       await db.execute({
-        sql: 'INSERT INTO participants (id, name, group_name, bio, photo, access_code) VALUES (?, ?, ?, ?, ?, ?)',
-        args: [id, name, group_name, bio || '', photo || '', code],
+        sql: 'INSERT INTO participants (id, name, group_name, bio, photo, instagram, access_code) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        args: [id, name, group_name, bio || '', photo || '', instagram || '', code],
       });
       inserted.push({ id, name, group_name, access_code: code });
     }

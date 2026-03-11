@@ -68,7 +68,7 @@ function PhaseBadge({ phase }) {
 // ── 新增/批次新增參與者表單
 function AddParticipantForm({ onAdded }) {
   const [mode, setMode] = useState('single'); // single | batch
-  const [form, setForm] = useState({ name: '', group_name: 'A', bio: '', access_code: '', photo: '' });
+  const [form, setForm] = useState({ name: '', group_name: 'A', bio: '', instagram: '', access_code: '', photo: '' });
   const [batchText, setBatchText] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -90,7 +90,7 @@ function AddParticipantForm({ onAdded }) {
     setLoading(true); setError('');
     try {
       await adminApi.addParticipant(form);
-      setForm({ name: '', group_name: 'A', bio: '', access_code: '', photo: '' });
+      setForm({ name: '', group_name: 'A', bio: '', instagram: '', access_code: '', photo: '' });
       setPreview('');
       onAdded();
     } catch (e) {
@@ -153,6 +153,8 @@ function AddParticipantForm({ onAdded }) {
           </div>
           <input value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
             placeholder="簡介（選填）" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+          <input value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))}
+            placeholder="Instagram 帳號（選填，例：@username）" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
           <input value={form.access_code} onChange={e => setForm(f => ({ ...f, access_code: e.target.value }))}
             placeholder="識別碼（選填，留空自動產生）" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
 
@@ -483,8 +485,9 @@ export default function Admin() {
                           {p.group_name}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500">密碼：{p.access_code}</p>
+                      <p className="text-xs text-gray-500">識別碼：{p.access_code}</p>
                       {p.bio && <p className="text-xs text-gray-400 truncate">{p.bio}</p>}
+                      {p.instagram && <p className="text-xs text-pink-400 truncate">IG: {p.instagram}</p>}
                     </div>
                     <button
                       onClick={() => handleDeleteParticipant(p.id, p.name)}
