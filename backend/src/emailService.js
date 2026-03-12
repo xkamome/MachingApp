@@ -157,7 +157,7 @@ async function sendResultEmails() {
   const sendMail = async (to, subject, html, label) => {
     if (!to) { skipped++; return; }
     try {
-      const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+      const { error } = await resend.emails.send({ from: FROM, to, subject, html, reply_to: process.env.EMAIL_USER });
       if (error) throw new Error(error.message);
       console.log(`[Email] ✅ ${label} <${to}>`);
       sent++;
