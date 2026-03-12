@@ -1,8 +1,7 @@
 const nodemailer = require('nodemailer');
 const { db } = require('./db');
 
-// 問卷連結（拿到連結後替換這裡，或在 .env 設定 SURVEY_URL）
-const SURVEY_URL = process.env.SURVEY_URL || '#';
+const SURVEY_URL = process.env.SURVEY_URL || 'https://docs.google.com/forms/d/e/1FAIpQLSfGrqUEUneigS7_PLf_lD-_rnYWoF7WH8DrcHlY558P5K6RqQ/viewform?usp=header';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -15,21 +14,9 @@ const transporter = nodemailer.createTransport({
 // ─────────────────────────────────────────────
 // 配對成功信件
 // ─────────────────────────────────────────────
-function buildSuccessEmail(recipientName, partner, partnerEmail) {
+function buildSuccessEmail(recipientName, partner) {
   const igLine = partner.instagram
-    ? `<p style="margin:0 0 10px;"><span style="color:#9ca3af;font-size:12px;font-weight:600;letter-spacing:0.5px;">IG</span><br>
-       <a href="https://instagram.com/${partner.instagram.replace('@','')}"
-          style="color:#db2777;font-size:15px;font-weight:600;text-decoration:none;">
-         @${partner.instagram.replace('@', '')}
-       </a></p>`
-    : '';
-
-  const emailLine = partnerEmail
-    ? `<p style="margin:0;"><span style="color:#9ca3af;font-size:12px;font-weight:600;letter-spacing:0.5px;">EMAIL</span><br>
-       <a href="mailto:${partnerEmail}"
-          style="color:#db2777;font-size:15px;font-weight:600;text-decoration:none;">
-         ${partnerEmail}
-       </a></p>`
+    ? `<p style="margin:16px 0 0;font-size:15px;color:#374151;">對方的 Instagram：<strong>@${partner.instagram.replace('@', '')}</strong></p>`
     : '';
 
   return `<!DOCTYPE html>
@@ -47,42 +34,37 @@ function buildSuccessEmail(recipientName, partner, partnerEmail) {
 
   <!-- Body -->
   <div style="padding:32px 24px;">
-    <p style="color:#374151;font-size:16px;line-height:1.7;margin:0 0 28px;">
-      嗨 <strong>${recipientName}</strong>，<br>
-      恭喜你！你在這次聯誼活動中配對成功了！
+    <p style="color:#374151;font-size:16px;line-height:1.8;margin:0 0 24px;">
+      親愛的 <strong>${recipientName}</strong>，<br><br>
+      感謝你參加這次的聯誼活動！<br><br>
+      恭喜你——配對成功了 🎉<br>
+      你們兩個互相選了對方，真的很有緣分！
     </p>
 
-    <!-- Partner Card -->
+    <!-- Info Card -->
     <div style="background:#fff0f7;border:1.5px solid #fbcfe8;border-radius:16px;padding:24px;margin-bottom:28px;">
-      <p style="color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 16px;">你的配對對象</p>
-
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
-        <div style="width:54px;height:54px;border-radius:50%;background:#fce7f3;color:#db2777;font-size:22px;font-weight:800;text-align:center;line-height:54px;flex-shrink:0;">
-          ${partner.name.charAt(0)}
-        </div>
-        <div>
-          <p style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111827;">${partner.name}</p>
-          ${partner.bio ? `<p style="margin:0;font-size:13px;color:#6b7280;line-height:1.5;">${partner.bio}</p>` : ''}
-        </div>
-      </div>
-
-      <div style="border-top:1px solid #fbcfe8;padding-top:16px;">
-        ${igLine}
-        ${emailLine}
-      </div>
+      <p style="color:#374151;font-size:15px;margin:0;">你是：<strong>${recipientName}</strong></p>
+      <p style="color:#374151;font-size:15px;margin:12px 0 0;">你的配對對象是：<strong>${partner.name}</strong></p>
+      ${igLine}
     </div>
+
+    <p style="color:#374151;font-size:15px;line-height:1.8;margin:0 0 28px;">
+      請你們主動出擊、互相聯絡吧，祝你們有個美好的開始 💕
+    </p>
 
     <!-- Survey CTA -->
     <div style="background:#fdf4ff;border-radius:12px;padding:20px 24px;margin-bottom:24px;text-align:center;">
       <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 16px;">
-        趁著這個好心情 😊，請花幾分鐘幫我們填寫意見調查，讓我們下次辦得更好！
+        趁著這個好心情 😊，請花一點時間幫我們填寫問卷，讓我們下次辦得更好！
       </p>
       <a href="${SURVEY_URL}"
          style="display:inline-block;background:#ec4899;color:#fff;font-weight:700;font-size:15px;
                 padding:12px 32px;border-radius:50px;text-decoration:none;">
-        📋 填寫意見調查
+        📋 點我填寫問卷
       </a>
     </div>
+
+    <p style="color:#6b7280;font-size:14px;text-align:center;margin:0;">聯誼工作人員敬上</p>
   </div>
 
   <!-- Footer -->
@@ -109,32 +91,31 @@ function buildFailureEmail(recipientName) {
   <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:40px 24px;text-align:center;">
     <div style="font-size:52px;margin-bottom:12px;">💜</div>
     <h1 style="color:#fff;margin:0;font-size:26px;font-weight:800;">感謝你的參與！</h1>
-    <p style="color:rgba(255,255,255,0.88);margin:10px 0 0;font-size:15px;">希望你今天過得愉快 ✨</p>
+    <p style="color:rgba(255,255,255,0.88);margin:10px 0 0;font-size:15px;">希望你今天過得開心 ✨</p>
   </div>
 
   <!-- Body -->
   <div style="padding:32px 24px;">
-    <p style="color:#374151;font-size:16px;line-height:1.7;margin:0 0 28px;">
-      嗨 <strong>${recipientName}</strong>，<br><br>
-      感謝你參加這次的配對活動！雖然這次緣分未到，但每一次相遇都是美好的開始，期待下次再見 😊
+    <p style="color:#374151;font-size:16px;line-height:1.8;margin:0 0 28px;">
+      親愛的 <strong>${recipientName}</strong>，<br><br>
+      感謝你參加這次的聯誼活動！<br><br>
+      這次緣分雖然差了一點點，但每一次的相遇都是美好的經驗，希望你今天過得開心 😊<br><br>
+      世界很小，緣分說不定只是還沒到，期待未來有機會再相見！
     </p>
 
     <!-- Survey Box -->
     <div style="background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:16px;padding:24px;margin-bottom:24px;text-align:center;">
       <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        你的想法對我們很重要！<br>
-        請花幾分鐘填寫意見調查，幫助我們把下次活動辦得更好 🙌
+        麻煩幫我們填寫問卷，讓我們下次把活動辦得更好 🙌
       </p>
       <a href="${SURVEY_URL}"
          style="display:inline-block;background:#7c3aed;color:#fff;font-weight:700;font-size:15px;
                 padding:12px 32px;border-radius:50px;text-decoration:none;">
-        📋 填寫意見調查
+        📋 點我填寫問卷
       </a>
     </div>
 
-    <p style="color:#9ca3af;font-size:14px;text-align:center;margin:0;">
-      期待下次活動與你相見！
-    </p>
+    <p style="color:#6b7280;font-size:14px;text-align:center;margin:0;">聯誼工作人員敬上</p>
   </div>
 
   <!-- Footer -->
@@ -210,9 +191,9 @@ async function sendResultEmails() {
     const emailB = choiceMap[idB].email;
 
     await sendMail(emailA, `🎉 配對成功！你的對象是 ${personB.name}`,
-      buildSuccessEmail(personA.name, personB, emailB), `成功 → ${personA.name}`);
+      buildSuccessEmail(personA.name, personB), `成功 → ${personA.name}`);
     await sendMail(emailB, `🎉 配對成功！你的對象是 ${personA.name}`,
-      buildSuccessEmail(personB.name, personA, emailA), `成功 → ${personB.name}`);
+      buildSuccessEmail(personB.name, personA), `成功 → ${personB.name}`);
   }
 
   // ── 配對失敗感謝信
@@ -234,4 +215,4 @@ async function sendResultEmails() {
   return { sent, skipped, errors };
 }
 
-module.exports = { sendResultEmails };
+module.exports = { sendResultEmails, buildSuccessEmail, buildFailureEmail };
