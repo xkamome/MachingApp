@@ -1,5 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
 const { db } = require('./db');
+
+dns.setDefaultResultOrder('ipv4first');
 
 const SURVEY_URL = process.env.SURVEY_URL || 'https://docs.google.com/forms/d/e/1FAIpQLSfGrqUEUneigS7_PLf_lD-_rnYWoF7WH8DrcHlY558P5K6RqQ/viewform?usp=header';
 
