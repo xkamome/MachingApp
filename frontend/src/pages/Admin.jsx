@@ -208,6 +208,8 @@ export default function Admin() {
   const [phaseLoading, setPhaseLoading] = useState(false);
   const [filterGroup, setFilterGroup] = useState('all');
   const [error, setError] = useState('');
+  const [testEmail, setTestEmail] = useState('');
+  const [testSending, setTestSending] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -355,6 +357,37 @@ export default function Admin() {
             >
               ➕ 新增 / 管理參與者名單
             </button>
+
+            {/* 寄測試信 */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <h3 className="font-bold text-gray-800 mb-3">📧 寄測試信</h3>
+              <div className="flex gap-2">
+                <input
+                  value={testEmail}
+                  onChange={e => setTestEmail(e.target.value)}
+                  placeholder="收件 email"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+                <button
+                  onClick={async () => {
+                    if (!testEmail) return;
+                    setTestSending(true);
+                    try {
+                      await adminApi.testEmail(testEmail);
+                      alert(`✅ 測試信已寄到 ${testEmail}`);
+                    } catch (e) {
+                      alert(`❌ 寄送失敗：${e.message}`);
+                    } finally {
+                      setTestSending(false);
+                    }
+                  }}
+                  disabled={testSending}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium shrink-0"
+                >
+                  {testSending ? '寄送中...' : '寄出'}
+                </button>
+              </div>
+            </div>
 
             {/* Phase 控制 */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">

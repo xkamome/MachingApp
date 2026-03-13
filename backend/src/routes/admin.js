@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { db, getPhase, setPhase, addAuditLog } = require('../db');
-const { sendResultEmails } = require('../emailService');
+const { sendResultEmails, buildSuccessEmail, buildFailureEmail } = require('../emailService');
 
 const router = express.Router();
 const VALID_PHASES = ['setup', 'voting', 'locked', 'revealed'];
@@ -267,6 +267,33 @@ router.post('/batch-participants', async (req, res) => {
 
     await addAuditLog('batch_add', null, `Batch added ${inserted.length} participants`);
     res.json({ inserted, errors });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/test-email
+router.post('/test-email', async (req, res) => {
+  try {
+    const { to } = req.body;
+    if (!to) return res.status(400).json({ error: 'to email required' });
+
+    const { Resend } = require('resend');
+    if (!process.env.RESEND_API_KEY) return res.status(500).json({ error: 'RESEND_API_KEY not set' });
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const html = buildSuccessEmail('測試用戶', { name: '配對對象', instagram: '@test_ig' });
+    const { error } = await resend.emails.send({
+      from: '聯誼活動 <noreply@lienyi.jp>',
+      to,
+      subject: '🧪 測試信 - 配對成功範例',
+      html,
+      reply_to: process.env.EMAIL_USER || 'a9765625@gmail.com',
+    });
+    if (error) throw new Error(error.message);
+
+    await addAuditLog('test_email', null, `Test email sent to ${to}`);
+    res.json({ ok: true, to });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
