@@ -1,20 +1,8 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
+const { Resend } = require('resend');
 const { db } = require('./db');
 
-dns.setDefaultResultOrder('ipv4first');
-
 const SURVEY_URL = process.env.SURVEY_URL || 'https://docs.google.com/forms/d/e/1FAIpQLSfGrqUEUneigS7_PLf_lD-_rnYWoF7WH8DrcHlY558P5K6RqQ/viewform?usp=header';
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const FROM = '聯誼活動 <noreply@lienyi.jp>';
 
 // ─────────────────────────────────────────────
 // 配對成功信件
@@ -137,10 +125,11 @@ function buildFailureEmail(recipientName) {
 // 主函式：寄出所有結果 email（成功 + 失敗）
 // ─────────────────────────────────────────────
 async function sendResultEmails() {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log('[Email] EMAIL_USER / EMAIL_PASS 未設定，跳過寄信');
+  if (!process.env.RESEND_API_KEY) {
+    console.log('[Email] RESEND_API_KEY 未設定，跳過寄信');
     return { sent: 0, skipped: 0, errors: [] };
   }
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const choicesRes = await db.execute('SELECT chooser_id, chosen_id, email FROM choices');
   const choiceMap = {};
@@ -167,7 +156,8 @@ async function sendResultEmails() {
   const sendMail = async (to, subject, html, label) => {
     if (!to) { skipped++; return; }
     try {
-      await transporter.sendMail({ from: `"聯誼活動" <${process.env.EMAIL_USER}>`, to, subject, html, replyTo: process.env.EMAIL_USER });
+      const { error } = await resend.emails.send({ from: FROM, to, subject, html, reply_to: process.env.EMAIL_USER || 'a9765625@gmail.com' });
+      if (error) throw new Error(error.message);
       console.log(`[Email] ✅ ${label} <${to}>`);
       sent++;
     } catch (e) {
