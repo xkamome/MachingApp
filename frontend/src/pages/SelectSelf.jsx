@@ -16,6 +16,7 @@ export default function SelectSelf() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [phaseError, setPhaseError] = useState('');
+  const [loginRes, setLoginRes] = useState(null);
 
   useEffect(() => {
     api.getPhase().then(({ phase }) => {
@@ -49,10 +50,33 @@ export default function SelectSelf() {
     setStep('confirm');
   };
 
-  const handleConfirm = () => {
-    setEmail('');
-    setEmailError('');
-    setStep('email');
+  const handleConfirm = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.login(selected.id);
+      localStorage.setItem('matching_token', res.token);
+      localStorage.setItem('matching_me', JSON.stringify(res.participant));
+      if (res.participant.email) {
+        // 已預存 email，直接跳過輸入步驟
+        localStorage.setItem('matching_email', res.participant.email);
+        if (res.hasChosen) {
+          localStorage.setItem('matching_chosen', res.chosenId);
+          navigate('/waiting');
+        } else {
+          navigate('/choose');
+        }
+      } else {
+        setLoginRes(res);
+        setEmail('');
+        setEmailError('');
+        setStep('email');
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmailSubmit = async () => {
@@ -60,23 +84,12 @@ export default function SelectSelf() {
       setEmailError('請輸入正確的 email 格式（例：abc@example.com）');
       return;
     }
-    setLoading(true);
-    setError('');
-    try {
-      const res = await api.login(selected.id);
-      localStorage.setItem('matching_token', res.token);
-      localStorage.setItem('matching_me', JSON.stringify(res.participant));
-      localStorage.setItem('matching_email', email.trim());
-      if (res.hasChosen) {
-        localStorage.setItem('matching_chosen', res.chosenId);
-        navigate('/waiting');
-      } else {
-        navigate('/choose');
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+    localStorage.setItem('matching_email', email.trim());
+    if (loginRes?.hasChosen) {
+      localStorage.setItem('matching_chosen', loginRes.chosenId);
+      navigate('/waiting');
+    } else {
+      navigate('/choose');
     }
   };
 

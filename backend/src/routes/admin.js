@@ -21,7 +21,7 @@ router.get('/participants', async (req, res) => {
   try {
     const rows = await db.execute(`
       SELECT
-        p.id, p.name, p.group_name, p.bio, p.photo, p.instagram, p.access_code,
+        p.id, p.name, p.group_name, p.bio, p.photo, p.instagram, p.email, p.access_code,
         c.chosen_id,
         cp.name as chosen_name
       FROM participants p
@@ -38,7 +38,7 @@ router.get('/participants', async (req, res) => {
 // POST /api/admin/participants
 router.post('/participants', async (req, res) => {
   try {
-    const { name, group_name, bio, photo, instagram, access_code } = req.body;
+    const { name, group_name, bio, photo, instagram, email, access_code } = req.body;
     if (!name || !group_name) {
       return res.status(400).json({ error: 'name and group_name required' });
     }
@@ -51,12 +51,12 @@ router.post('/participants', async (req, res) => {
 
     const id = uuidv4();
     await db.execute({
-      sql: 'INSERT INTO participants (id, name, group_name, bio, photo, instagram, access_code) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      args: [id, name, group_name, bio || '', photo || '', instagram || '', code],
+      sql: 'INSERT INTO participants (id, name, group_name, bio, photo, instagram, email, access_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [id, name, group_name, bio || '', photo || '', instagram || '', email || '', code],
     });
 
     await addAuditLog('add_participant', id, `Added ${name} to group ${group_name}`);
-    res.json({ id, name, group_name, bio, photo, instagram: instagram || '', access_code: code });
+    res.json({ id, name, group_name, bio, photo, instagram: instagram || '', email: email || '', access_code: code });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -242,7 +242,7 @@ router.post('/batch-participants', async (req, res) => {
     const errors = [];
 
     for (const item of participants) {
-      const { name, group_name, bio, photo, instagram, access_code } = item;
+      const { name, group_name, bio, photo, instagram, email, access_code } = item;
       if (!name || !group_name) {
         errors.push({ item, error: 'name and group_name required' });
         continue;
@@ -259,8 +259,8 @@ router.post('/batch-participants', async (req, res) => {
       }
       const id = uuidv4();
       await db.execute({
-        sql: 'INSERT INTO participants (id, name, group_name, bio, photo, instagram, access_code) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        args: [id, name, group_name, bio || '', photo || '', instagram || '', code],
+        sql: 'INSERT INTO participants (id, name, group_name, bio, photo, instagram, email, access_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        args: [id, name, group_name, bio || '', photo || '', instagram || '', email || '', code],
       });
       inserted.push({ id, name, group_name, access_code: code });
     }

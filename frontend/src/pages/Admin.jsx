@@ -110,8 +110,8 @@ function AddParticipantForm({ onAdded }) {
       } catch {
         // 嘗試 CSV: name,group,bio,instagram,access_code 每行一人
         participants = batchText.trim().split('\n').map(line => {
-          const [name, group_name, bio, instagram, access_code] = line.split(',').map(s => s.trim());
-          return { name, group_name, bio: bio || '', instagram: instagram || '', access_code };
+          const [name, group_name, bio, instagram, email, access_code] = line.split(',').map(s => s.trim());
+          return { name, group_name, bio: bio || '', instagram: instagram || '', email: email || '', access_code };
         });
       }
       const res = await adminApi.batchAdd(participants);
@@ -177,13 +177,14 @@ function AddParticipantForm({ onAdded }) {
         <div className="space-y-3">
           <p className="text-xs text-gray-500">
             格式：每行一人<br />
-            <code className="bg-gray-100 px-1 rounded">姓名,分組(A或B),簡介,IG帳號</code>（識別碼自動產生）<br />
+            <code className="bg-gray-100 px-1 rounded">姓名,分組(A或B),簡介,IG帳號,email（選填）</code><br />
+            有填 email 則參與者無需自行輸入；識別碼自動產生<br />
             或貼上 JSON 陣列
           </p>
           <textarea
             value={batchText}
             onChange={e => setBatchText(e.target.value)}
-            placeholder={`範例：\n小明,A,喜歡打球,@ming123\n小美,B,愛看電影,@mei456`}
+            placeholder={`範例：\n小明,A,喜歡打球,@ming123,ming@gmail.com\n小美,B,愛看電影,@mei456`}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-32 resize-none font-mono"
           />
           {error && <p className="text-sm text-gray-600">{error}</p>}

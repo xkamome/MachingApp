@@ -61,6 +61,11 @@ async function initDb() {
   try {
     await db.execute('ALTER TABLE participants ADD COLUMN instagram TEXT DEFAULT ""');
   } catch (_) { /* column already exists */ }
+
+  // Migration: add email column to participants if not exists
+  try {
+    await db.execute('ALTER TABLE participants ADD COLUMN email TEXT DEFAULT ""');
+  } catch (_) { /* column already exists */ }
 }
 
 async function getPhase() {

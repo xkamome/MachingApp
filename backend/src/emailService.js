@@ -160,6 +160,7 @@ async function sendResultEmails() {
       if (error) throw new Error(error.message);
       console.log(`[Email] ✅ ${label} <${to}>`);
       sent++;
+      await new Promise(r => setTimeout(r, 350)); // rate limit protection
     } catch (e) {
       console.error(`[Email] ❌ ${label} <${to}>:`, e.message);
       errors.push({ to, error: e.message });

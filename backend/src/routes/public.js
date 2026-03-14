@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
     if (!participant_id) return res.status(400).json({ error: 'participant_id required' });
 
     const result = await db.execute({
-      sql: 'SELECT id, name, group_name, bio, photo FROM participants WHERE id = ?',
+      sql: 'SELECT id, name, group_name, bio, photo, email FROM participants WHERE id = ?',
       args: [participant_id],
     });
     const participant = result.rows[0];
@@ -91,12 +91,9 @@ router.post('/choice', auth, async (req, res) => {
 
     const { chosen_id, email } = req.body;
     if (!chosen_id) return res.status(400).json({ error: 'chosen_id required' });
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ error: 'email 格式不正確' });
-    }
 
     const chooserRes = await db.execute({
-      sql: 'SELECT id, group_name FROM participants WHERE id = ?',
+      sql: 'SELECT id, group_name, email FROM participants WHERE id = ?',
       args: [req.user.id],
     });
     const chosenRes = await db.execute({
@@ -112,6 +109,12 @@ router.post('/choice', auth, async (req, res) => {
       return res.status(400).json({ error: 'Must choose from the other group' });
     }
 
+    // 使用傳入的 email，或 fallback 到 participants 表預存的 email
+    const emailToUse = (email && email.trim()) || chooser.email || '';
+    if (!emailToUse || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToUse)) {
+      return res.status(400).json({ error: 'email 格式不正確，請輸入有效的 email' });
+    }
+
     const now = new Date().toISOString();
     const existingRes = await db.execute({
       sql: 'SELECT chooser_id FROM choices WHERE chooser_id = ?',
@@ -121,12 +124,12 @@ router.post('/choice', auth, async (req, res) => {
     if (existingRes.rows.length > 0) {
       await db.execute({
         sql: 'UPDATE choices SET chosen_id = ?, email = ?, updated_at = ? WHERE chooser_id = ?',
-        args: [chosen_id, email, now, req.user.id],
+        args: [chosen_id, emailToUse, now, req.user.id],
       });
     } else {
       await db.execute({
         sql: 'INSERT INTO choices (chooser_id, chosen_id, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-        args: [req.user.id, chosen_id, email, now, now],
+        args: [req.user.id, chosen_id, emailToUse, now, now],
       });
     }
 
