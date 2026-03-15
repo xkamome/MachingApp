@@ -299,4 +299,38 @@ router.post('/test-email', async (req, res) => {
   }
 });
 
+// POST /api/admin/test-batch-email
+router.post('/test-batch-email', async (req, res) => {
+  try {
+    const { emails } = req.body;
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ error: 'emails array required' });
+    }
+
+    const { Resend } = require('resend');
+    if (!process.env.RESEND_API_KEY) return res.status(500).json({ error: 'RESEND_API_KEY not set' });
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const REPLY_TO = process.env.EMAIL_USER || 'a9765625@gmail.com';
+    const payload = emails.map((to, i) => ({
+      from: '聯誼活動 <noreply@lienyi.jp>',
+      to,
+      subject: `🧪 批次測試信 #${i + 1} - 配對成功範例`,
+      html: buildSuccessEmail('測試用戶', { name: '配對對象', instagram: '@test_ig' }),
+      reply_to: REPLY_TO,
+    }));
+
+    const { data, error } = await resend.batch.send(payload);
+    if (error) throw new Error(error.message);
+
+    const sent = Array.isArray(data) ? data.filter(r => r.id).length : payload.length;
+    const failed = payload.length - sent;
+
+    await addAuditLog('test_batch_email', null, `Batch test: ${sent} sent, ${failed} failed to [${emails.join(', ')}]`);
+    res.json({ ok: true, sent, failed, emails });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

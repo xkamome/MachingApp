@@ -52,4 +52,5 @@ export const adminApi = {
   preview(id) { return this.request(`/preview/${id}`); },
   batchAdd(participants) { return this.request('/batch-participants', { method: 'POST', body: { participants } }); },
   testEmail(to) { return this.request('/test-email', { method: 'POST', body: { to } }); },
+  testBatchEmail(emails) { return this.request('/test-batch-email', { method: 'POST', body: { emails } }); },
 };

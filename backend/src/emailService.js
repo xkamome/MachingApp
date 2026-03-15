@@ -123,6 +123,7 @@ function buildFailureEmail(recipientName) {
 
 // ─────────────────────────────────────────────
 // 主函式：寄出所有結果 email（成功 + 失敗）
+// 使用 Resend Batch API，一次送出所有信（上限 100 封/批）
 // ─────────────────────────────────────────────
 async function sendResultEmails() {
   if (!process.env.RESEND_API_KEY) {
@@ -130,6 +131,7 @@ async function sendResultEmails() {
     return { sent: 0, skipped: 0, errors: [] };
   }
   const resend = new Resend(process.env.RESEND_API_KEY);
+  const REPLY_TO = process.env.EMAIL_USER || 'a9765625@gmail.com';
 
   const choicesRes = await db.execute('SELECT chooser_id, chosen_id, email FROM choices');
   const choiceMap = {};
@@ -150,26 +152,12 @@ async function sendResultEmails() {
     }
   }
 
-  let sent = 0, skipped = 0;
-  const errors = [];
+  // ── 組裝所有待寄信件
+  const batch = []; // [{ to, subject, html, label }]
+  let skipped = 0;
 
-  const sendMail = async (to, subject, html, label) => {
-    if (!to) { skipped++; return; }
-    try {
-      const { error } = await resend.emails.send({ from: FROM, to, subject, html, reply_to: process.env.EMAIL_USER || 'a9765625@gmail.com' });
-      if (error) throw new Error(error.message);
-      console.log(`[Email] ✅ ${label} <${to}>`);
-      sent++;
-    } catch (e) {
-      console.error(`[Email] ❌ ${label} <${to}>:`, e.message);
-      errors.push({ to, error: e.message });
-    } finally {
-      await new Promise(r => setTimeout(r, 350)); // rate limit protection（成功或失敗都等）
-    }
-  };
-
-  // ── 配對成功信
-  console.log(`[Email] 找到 ${pairs.length} 對配對，寄成功通知...`);
+  // 配對成功信
+  console.log(`[Email] 找到 ${pairs.length} 對配對，組裝成功通知...`);
   for (const [idA, idB] of pairs) {
     const [resA, resB] = await Promise.all([
       db.execute({ sql: 'SELECT name, bio, instagram FROM participants WHERE id = ?', args: [idA] }),
@@ -182,25 +170,67 @@ async function sendResultEmails() {
     const emailA = choiceMap[idA].email;
     const emailB = choiceMap[idB].email;
 
-    await sendMail(emailA, `🎉 配對成功！你的對象是 ${personB.name}`,
-      buildSuccessEmail(personA.name, personB), `成功 → ${personA.name}`);
-    await sendMail(emailB, `🎉 配對成功！你的對象是 ${personA.name}`,
-      buildSuccessEmail(personB.name, personA), `成功 → ${personB.name}`);
+    if (emailA) {
+      batch.push({ to: emailA, subject: `🎉 配對成功！你的對象是 ${personB.name}`,
+        html: buildSuccessEmail(personA.name, personB), label: `成功 → ${personA.name}` });
+    } else { skipped++; }
+
+    if (emailB) {
+      batch.push({ to: emailB, subject: `🎉 配對成功！你的對象是 ${personA.name}`,
+        html: buildSuccessEmail(personB.name, personA), label: `成功 → ${personB.name}` });
+    } else { skipped++; }
   }
 
-  // ── 配對失敗感謝信
+  // 配對失敗感謝信
   const unmatchedIds = Object.keys(choiceMap).filter(id => !matchedIds.has(id));
-  console.log(`[Email] 找到 ${unmatchedIds.length} 位未配對，寄感謝信...`);
-
+  console.log(`[Email] 找到 ${unmatchedIds.length} 位未配對，組裝感謝信...`);
   for (const id of unmatchedIds) {
     const email = choiceMap[id].email;
     if (!email) { skipped++; continue; }
     const res = await db.execute({ sql: 'SELECT name FROM participants WHERE id = ?', args: [id] });
     const person = res.rows[0];
     if (!person) { skipped++; continue; }
+    batch.push({ to: email, subject: '感謝你參加配對活動 💜',
+      html: buildFailureEmail(person.name), label: `感謝 → ${person.name}` });
+  }
 
-    await sendMail(email, '感謝你參加配對活動 💜',
-      buildFailureEmail(person.name), `感謝 → ${person.name}`);
+  if (batch.length === 0) {
+    console.log('[Email] 沒有可寄的信件');
+    return { sent: 0, skipped, errors: [] };
+  }
+
+  // ── 分批送出（Resend Batch API 上限 100 封/次）
+  let sent = 0;
+  const errors = [];
+  const CHUNK = 100;
+
+  console.log(`[Email] 開始批次寄送，共 ${batch.length} 封...`);
+  for (let i = 0; i < batch.length; i += CHUNK) {
+    const chunk = batch.slice(i, i + CHUNK);
+    const payload = chunk.map(m => ({
+      from: FROM, to: m.to, subject: m.subject, html: m.html, reply_to: REPLY_TO,
+    }));
+
+    try {
+      const { data, error } = await resend.batch.send(payload);
+      if (error) throw new Error(error.message);
+
+      // data 是陣列，每個元素對應一封信的結果 { id } 或 { error }
+      for (let j = 0; j < chunk.length; j++) {
+        const result = Array.isArray(data) ? data[j] : null;
+        if (result?.id) {
+          console.log(`[Email] ✅ ${chunk[j].label} <${chunk[j].to}>`);
+          sent++;
+        } else {
+          const msg = result?.error?.message || '未知錯誤';
+          console.error(`[Email] ❌ ${chunk[j].label} <${chunk[j].to}>:`, msg);
+          errors.push({ to: chunk[j].to, error: msg });
+        }
+      }
+    } catch (e) {
+      console.error(`[Email] ❌ 批次 ${i + 1}–${i + chunk.length} 全部失敗:`, e.message);
+      for (const m of chunk) errors.push({ to: m.to, error: e.message });
+    }
   }
 
   console.log(`[Email] 完成：寄出 ${sent} 封，略過 ${skipped} 封，失敗 ${errors.length} 封`);

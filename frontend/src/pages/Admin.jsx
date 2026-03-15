@@ -211,6 +211,8 @@ export default function Admin() {
   const [error, setError] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [testSending, setTestSending] = useState(false);
+  const [batchTestEmails, setBatchTestEmails] = useState('');
+  const [batchTestSending, setBatchTestSending] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -388,6 +390,37 @@ export default function Admin() {
                   {testSending ? '寄送中...' : '寄出'}
                 </button>
               </div>
+            </div>
+
+            {/* 批次測試寄信 */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <h3 className="font-bold text-gray-800 mb-1">📧 測試批次寄信</h3>
+              <p className="text-xs text-gray-400 mb-3">每行一個 email，一次全部用 Batch API 送出</p>
+              <textarea
+                value={batchTestEmails}
+                onChange={e => setBatchTestEmails(e.target.value)}
+                placeholder={"abc@example.com\ndef@example.com\nghi@example.com"}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24 resize-none font-mono mb-2"
+              />
+              <button
+                onClick={async () => {
+                  const emails = batchTestEmails.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+                  if (emails.length === 0) return;
+                  setBatchTestSending(true);
+                  try {
+                    const res = await adminApi.testBatchEmail(emails);
+                    alert(`✅ 批次寄出完成：${res.sent} 封成功${res.failed ? `，${res.failed} 封失敗` : ''}`);
+                  } catch (e) {
+                    alert(`❌ 寄送失敗：${e.message}`);
+                  } finally {
+                    setBatchTestSending(false);
+                  }
+                }}
+                disabled={batchTestSending}
+                className="w-full py-2 bg-purple-500 text-white rounded-lg text-sm font-medium disabled:opacity-60"
+              >
+                {batchTestSending ? '寄送中...' : `一次全部寄出（${batchTestEmails.split(/[\n,]/).filter(s => s.trim()).length} 封）`}
+              </button>
             </div>
 
             {/* Phase 控制 */}
